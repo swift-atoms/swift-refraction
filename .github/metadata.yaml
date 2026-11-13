@@ -1,0 +1,7 @@
+description: "Refraction for Swift: refractive indices, Snell's law with total internal reflection, Fresnel's reflected share, Cauchy dispersion from an Abbe number, and thick and ball lenses."
+topics:
+  - primitives
+  - optics
+homepage: "https://swift-institute.org"
+readme:
+  family: E
