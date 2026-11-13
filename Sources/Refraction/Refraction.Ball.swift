@@ -46,13 +46,13 @@ extension Refraction.Ball {
     public var backFocalLength: Scalar { focalLength - radius }
 
     /// The lateral magnification of an object `distance` behind the ball's surface, seen through the ball
-    /// from far in front: `f / (f − (r + distance))`. Above 1 is enlarged and upright, as a glass ball held
+    /// from far in front: `f / (f − r − distance)`. Above 1 is enlarged and upright, as a glass ball held
     /// over a page enlarges it; at the back focal point it is infinite; beyond, negative, turned over. At
     /// contact it is `n / (2 − n)`.
     @inlinable
     public func enlargement(at distance: Scalar) -> Scalar {
         let f = focalLength
-        return f / (f - (radius + distance))
+        return f / (f - radius - distance)
     }
 }
 
