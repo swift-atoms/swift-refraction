@@ -71,38 +71,66 @@ extension Refraction.Trace {
         }
     }
 
-    /// Rays that wait to be followed, the last one first. When sixteen wait, one more takes the lightest one's place,
-    /// if it carries more.
-    @usableFromInline
-    internal struct Pending {
+    /// Sixteen rays kept in place.
+    public struct Rays: Refraction.Waiting {
         @usableFromInline
         internal var rays: InlineArray<16, Ray>
-        @usableFromInline
-        internal var count: Int
 
         @inlinable
-        internal init() {
+        public init() {
             rays = InlineArray(repeating: Ray(origin: .zero, direction: .zero, weight: 0))
-            count = 0
+        }
+
+        @inlinable
+        public subscript(index: Int32) -> Ray {
+            get { rays[Int(index)] }
+            set { rays[Int(index)] = newValue }
         }
     }
 }
 
-extension Refraction.Trace.Pending {
-    @inlinable
-    internal mutating func append(_ ray: Refraction.Trace<Scalar>.Ray) {
-        guard count == 16 else {
-            rays[count] = ray
-            count += 1
-            return
+extension Refraction {
+    /// Where sixteen rays wait to be followed.
+    public protocol Waiting {
+        associatedtype Scalar: BinaryFloatingPoint
+        init()
+        subscript(index: Int32) -> Refraction.Trace<Scalar>.Ray { get set }
+    }
+}
+
+extension Refraction.Trace {
+    /// Rays that wait to be followed, the last one first. When sixteen wait, one more takes the lightest one's place,
+    /// if it carries more.
+    @usableFromInline
+    internal struct Pending<Kept: Refraction.Waiting> where Kept.Scalar == Scalar {
+        @usableFromInline
+        internal var rays: Kept
+        @usableFromInline
+        internal var count: Int32
+
+        @inlinable
+        @inline(always)
+        internal init() {
+            rays = Kept()
+            count = 0
         }
-        var lightest = 0
-        var place = 1
-        while place < 16 {
-            if rays[place].weight < rays[lightest].weight { lightest = place }
-            place += 1
+
+        @inlinable
+        @inline(always)
+        internal mutating func append(_ ray: Ray) {
+            guard count == 16 else {
+                rays[count] = ray
+                count &+= 1
+                return
+            }
+            var lightest: Int32 = 0
+            var place: Int32 = 1
+            while place < 16 {
+                if rays[place].weight < rays[lightest].weight { lightest = place }
+                place &+= 1
+            }
+            if ray.weight > rays[lightest].weight { rays[lightest] = ray }
         }
-        if ray.weight > rays[lightest].weight { rays[lightest] = ray }
     }
 }
 
@@ -118,8 +146,22 @@ extension Refraction.Trace {
         next: (Ray) -> Surface?,
         leaving: (Ray) -> Void
     ) {
+        run(entering: ray, normal: normal, index: index, keeping: Rays.self, next: next, leaving: leaving)
+    }
+
+    /// `run(entering:normal:index:next:leaving:)` with the rays that wait kept where `Kept` keeps them.
+    @inlinable
+    @inline(always)
+    public func run<Kept: Refraction.Waiting>(
+        entering ray: Ray,
+        normal: Vector<3, Scalar>,
+        index: Refraction.Index<Scalar>,
+        keeping: Kept.Type,
+        next: (Ray) -> Surface?,
+        leaving: (Ray) -> Void
+    ) where Kept.Scalar == Scalar {
         let index = Swift.max(index, .vacuum)
-        var pending = Pending()
+        var pending = Pending<Kept>()
         var ray = ray
         var surface = Surface(distance: 0, normal: normal, number: ray.from)
         while true {
@@ -151,7 +193,7 @@ extension Refraction.Trace {
             var met = false
             while !met {
                 guard pending.count > 0 else { return }
-                pending.count -= 1
+                pending.count &-= 1
                 ray = pending.rays[pending.count]
                 if ray.depth < interfaces, let found = next(ray) {
                     ray.origin = ray.origin + ray.direction.scaled(by: found.distance)
