@@ -110,6 +110,7 @@ extension Refraction.Trace {
     /// Follows a ray that meets a body of an index, at least a vacuum's, at its origin, where the surface has a normal.
     /// `next` gives the surface a ray meets next, and `leaving` takes the rays that meet none.
     @inlinable
+    @inline(always)
     public func run(
         entering ray: Ray,
         normal: Vector<3, Scalar>,
