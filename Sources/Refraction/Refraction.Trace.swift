@@ -196,7 +196,7 @@ extension Refraction.Trace {
                 pending.count &-= 1
                 ray = pending.rays[pending.count]
                 if ray.depth < interfaces, let found = next(ray) {
-                    ray.origin = ray.origin + ray.direction.scaled(by: found.distance)
+                    ray.origin += ray.direction.scaled(by: found.distance)
                     ray.from = found.number
                     surface = found
                     met = true
