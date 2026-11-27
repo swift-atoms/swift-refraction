@@ -238,7 +238,7 @@ extension `Refraction Tests` {
             let glass = Refraction.Ball<Double>(index: 1.5, radius: 15)
             #expect(`Refraction Tests`.close(glass.enlargement(at: 0), 3))
             #expect(glass.enlargement(at: 3) > glass.enlargement(at: 0))
-            #expect(`Refraction Tests`.close(glass.backFocalLength, 7.5))
+            #expect(`Refraction Tests`.close(glass.focal.back, 7.5))
             #expect(glass.enlargement(at: 40) < 0)
         }
 
@@ -246,9 +246,9 @@ extension `Refraction Tests` {
         func `A ball is the thick lens of its two faces`() {
             for index in [1.2, 1.5, 1.8] {
                 let ball = Refraction.Ball<Double>(index: .init(index), radius: 4, surroundings: 1.33)
-                #expect(`Refraction Tests`.close(ball.focalLength, ball.lens.focalLength, within: 1e-12))
+                #expect(`Refraction Tests`.close(ball.focal.length, ball.lens.focalLength, within: 1e-12))
             }
-            #expect(Refraction.Ball<Double>(index: 1, radius: 4).focalLength == .infinity)
+            #expect(Refraction.Ball<Double>(index: 1, radius: 4).focal.length == .infinity)
         }
 
         @Test

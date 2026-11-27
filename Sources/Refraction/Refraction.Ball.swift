@@ -32,18 +32,9 @@ extension Refraction.Ball {
         Refraction.Lens(index: index, front: radius, back: -radius, thickness: 2 * radius, surroundings: surroundings)
     }
 
-    /// The effective focal length, from the centre: `n r / (2 (n − 1))`, with `n` the ball's index over
-    /// the surroundings'. Infinite at an index ratio of 1.
+    /// The ball's focal lengths.
     @inlinable
-    public var focalLength: Scalar {
-        let n = index.value / surroundings.value
-        return n * radius / (2 * (n - 1))
-    }
-
-    /// The back focal length: how far behind the ball's surface its focal point lies, `focalLength − radius`.
-    /// It is negative, inside the ball, for an index ratio above 2.
-    @inlinable
-    public var backFocalLength: Scalar { focalLength - radius }
+    public var focal: Refraction.Ball<Scalar>.Focal { .init(self) }
 
     /// The lateral magnification of an object `distance` behind the ball's surface, seen through the ball
     /// from far in front: `f / (f − r − distance)`. Above 1 is enlarged and upright, as a glass ball held
@@ -51,7 +42,7 @@ extension Refraction.Ball {
     /// contact it is `n / (2 − n)`.
     @inlinable
     public func enlargement(at distance: Scalar) -> Scalar {
-        let f = focalLength
+        let f = focal.length
         return f / (f - radius - distance)
     }
 }
