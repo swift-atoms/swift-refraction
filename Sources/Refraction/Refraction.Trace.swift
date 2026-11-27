@@ -22,148 +22,35 @@ extension Refraction {
 }
 
 extension Refraction.Trace {
-    /// A surface a ray meets: how far along it, the unit normal there, on either side, and which surface it is.
-    public struct Surface {
-        public var distance: Scalar
-        public var normal: Vector<3, Scalar>
-        public var number: Int32
-
-        @inlinable
-        public init(distance: Scalar, normal: Vector<3, Scalar>, number: Int32 = -1) {
-            self.distance = distance
-            self.normal = normal
-            self.number = number
-        }
-    }
-
-    /// A ray on its way, or one that has left.
-    public struct Ray {
-        public var origin: Vector<3, Scalar>
-        public var direction: Vector<3, Scalar>
-        /// The share of the light it carries.
-        public var weight: Scalar
-        /// How far the light went within the body.
-        public var length: Scalar
-        /// How many surfaces it met.
-        public var depth: Int32
-        /// The surface it left last.
-        public var from: Int32
-        /// Whether it runs within the body.
-        public var inside: Bool
-
-        @inlinable
-        public init(
-            origin: Vector<3, Scalar>,
-            direction: Vector<3, Scalar>,
-            weight: Scalar = 1,
-            length: Scalar = 0,
-            depth: Int32 = 0,
-            from: Int32 = -1,
-            inside: Bool = false
-        ) {
-            self.origin = origin
-            self.direction = direction
-            self.weight = weight
-            self.length = length
-            self.depth = depth
-            self.from = from
-            self.inside = inside
-        }
-    }
-
-    /// Sixteen rays kept in place.
-    public struct Rays: Refraction.Waiting {
-        @usableFromInline
-        internal var rays: InlineArray<16, Ray>
-
-        @inlinable
-        public init() {
-            rays = InlineArray(repeating: Ray(origin: .zero, direction: .zero, weight: 0))
-        }
-
-        @inlinable
-        public subscript(index: Int32) -> Ray {
-            get { rays[Int(index)] }
-            set { rays[Int(index)] = newValue }
-        }
-    }
-}
-
-extension Refraction {
-    /// Where sixteen rays wait to be followed.
-    public protocol Waiting {
-        associatedtype Scalar: BinaryFloatingPoint
-        init()
-        subscript(index: Int32) -> Refraction.Trace<Scalar>.Ray { get set }
-    }
-}
-
-extension Refraction.Trace {
-    /// Rays that wait to be followed, the last one first. When sixteen wait, one more takes the lightest one's place,
-    /// if it carries more.
-    @usableFromInline
-    internal struct Pending<Kept: Refraction.Waiting> where Kept.Scalar == Scalar {
-        @usableFromInline
-        internal var rays: Kept
-        @usableFromInline
-        internal var count: Int32
-
-        @inlinable
-        @inline(always)
-        internal init() {
-            rays = Kept()
-            count = 0
-        }
-
-        @inlinable
-        @inline(always)
-        internal mutating func append(_ ray: Ray) {
-            guard count == 16 else {
-                rays[count] = ray
-                count &+= 1
-                return
-            }
-            var lightest: Int32 = 0
-            var place: Int32 = 1
-            while place < 16 {
-                if rays[place].weight < rays[lightest].weight { lightest = place }
-                place &+= 1
-            }
-            if ray.weight > rays[lightest].weight { rays[lightest] = ray }
-        }
-    }
-}
-
-extension Refraction.Trace {
     /// Follows a ray that meets a body of an index, at least a vacuum's, at its origin, where the surface has a normal.
     /// `next` gives the surface a ray meets next, and `leaving` takes the rays that meet none.
     @inlinable
     @inline(always)
     public func run(
-        entering ray: Ray,
+        entering ray: Refraction.Trace<Scalar>.Ray,
         normal: Vector<3, Scalar>,
         index: Refraction.Index<Scalar>,
-        next: (Ray) -> Surface?,
-        leaving: (Ray) -> Void
+        next: (Refraction.Trace<Scalar>.Ray) -> Refraction.Trace<Scalar>.Surface?,
+        leaving: (Refraction.Trace<Scalar>.Ray) -> Void
     ) {
-        run(entering: ray, normal: normal, index: index, keeping: Rays.self, next: next, leaving: leaving)
+        run(entering: ray, normal: normal, index: index, keeping: Refraction.Trace<Scalar>.Rays.self, next: next, leaving: leaving)
     }
 
     /// `run(entering:normal:index:next:leaving:)` with the rays that wait kept where `Kept` keeps them.
     @inlinable
     @inline(always)
     public func run<Kept: Refraction.Waiting>(
-        entering ray: Ray,
+        entering ray: Refraction.Trace<Scalar>.Ray,
         normal: Vector<3, Scalar>,
         index: Refraction.Index<Scalar>,
         keeping: Kept.Type,
-        next: (Ray) -> Surface?,
-        leaving: (Ray) -> Void
+        next: (Refraction.Trace<Scalar>.Ray) -> Refraction.Trace<Scalar>.Surface?,
+        leaving: (Refraction.Trace<Scalar>.Ray) -> Void
     ) where Kept.Scalar == Scalar {
         let index = Swift.max(index, .vacuum)
-        var pending = Pending<Kept>()
+        var pending = Refraction.Trace<Scalar>.Pending<Kept>()
         var ray = ray
-        var surface = Surface(distance: 0, normal: normal, number: ray.from)
+        var surface = Refraction.Trace<Scalar>.Surface(distance: 0, normal: normal, number: ray.from)
         while true {
             let against = Refraction.dot(ray.direction, surface.normal) > 0 ? surface.normal.scaled(by: -1) : surface.normal
             let cosine = Swift.min(Swift.max(-Refraction.dot(ray.direction, against), 0), 1)
